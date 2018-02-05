@@ -3,6 +3,7 @@
 const http = require('http');
 const fs = require('fs');
 const qs = require('querystring');
+const crypto = require("crypto");
 
 const users = new Map();
 users.set('admin', {
@@ -19,6 +20,8 @@ users.set('milosz', {
     password: 'nicepassword',
     role: 'user',
 });
+
+const validCookies = {};
 
 function getUserList(callback) {
     let userList = [];
@@ -38,22 +41,68 @@ function compareUrl(url1, url2){
     return (url1.slice(0, url2.length) === url2);
 }
 
+function parseCookies(cookieString) {
+    const cookies = [];
+    cookieString && cookieString.split(';').forEach((cookie) => {
+        const cookieParts = cookie.split('=');
+        cookies[cookieParts.shift().trim()] = decodeURI(cookieParts.join('='));
+    });
+
+    return cookies;
+}
+
+function cookieToUser(cookie, callback) {
+    if(validCookies[cookie] !== undefined) {
+        callback({username: validCookies[cookie].username, role: validCookies[cookie].role});
+    }
+    callback({error: 'wrong cookie'});
+}
+
+
 const server = http.createServer((req, res) => {
-    console.log(req.headers.cookie);
-    console.log(req.url);
+    const cookies = parseCookies(req.headers.cookie);
+    console.log(cookies);
     // console.log(req);
-    if(compareUrl(req.url, '/login.html')) {
-        res.end(fs.readFileSync('login.html').toString());
+    if(req.method === 'GET') {
+        console.log('GET:', req.url);
+
+        if (compareUrl(req.url, '/login')) {
+            res.end(fs.readFileSync('login.html').toString());
+        }
+
+        if (compareUrl(req.url, '/index')) {
+            cookieToUser(cookies['id'], (user) => {
+                if (user.error === 'wrong cookie') {
+                    res.end(fs.readFileSync('index.html').toString());
+                }
+                else if (user.role === 'admin') {
+                    res.end(fs.readFileSync('indexAdmin.html'));
+                }
+                else if (user.role === 'user') {
+                    res.end(fs.readFileSync('indexUser.html'));
+                }
+                else {
+                    res.end('Internal error, code 1');
+                }
+            });
+        }
+
+        if(compareUrl(req.url, '/logout')) {
+            res.writeHead(302, {
+                'Set-Cookie': 'id=',
+                'Location': 'index.html'
+            });
+            res.end();
+        }
     }
 
-    if (req.method === 'POST') {
+    if(req.method === 'POST') {
+        console.log('POST:', req.url);
+
         let body = '';
 
         req.on('data', (data) => {
             body += data;
-
-            // Too much POST data, kill the connection!
-            // 1e6 === 1 * Math.pow(10, 6) === 1 * 1000000 ~~~ 1MB
             if (body.length > 1e6)
                 req.connection.destroy();
         });
@@ -64,12 +113,14 @@ const server = http.createServer((req, res) => {
             if(req.url === '/index.html') {
                 checkPassword(post.username, post.password, (result) => {
                     if(result.status === 'ok') {
-                        if(result.role === 'admin') {
-                            res.end(fs.readFileSync('indexAdmin.html'));
-                        }
-                        else if(result.role === 'user') {
-                            res.end(fs.readFileSync('indexUser.html'));
-                        }
+                        const newCookie = crypto.randomBytes(24).toString('hex');
+                        validCookies[newCookie] = {username: result.username, role: result.role};
+                        console.log('New cookie:', newCookie, validCookies[newCookie]);
+                        res.writeHead(302, {
+                            'Set-Cookie': `id=${newCookie}`,
+                            'Location': 'index.html'
+                        });
+                        res.end();
                     }
                     else {
                         res.writeHead(302, {
@@ -79,7 +130,6 @@ const server = http.createServer((req, res) => {
                     }
                 })
             }
-            // use post['blah'], etc.
         });
     }
 
