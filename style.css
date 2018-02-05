@@ -1,0 +1,15 @@
+html, body
+{
+    background-color: #16191e;
+    height: 100%;
+}
+
+.v-centered {
+    position: relative;
+    top: 40%;
+    transform: translateY(-40%);
+}
+
+.navbar-spacer {
+    margin-top: 60px;
+}

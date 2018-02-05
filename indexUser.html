@@ -9,10 +9,11 @@
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.9/umd/popper.min.js"></script>
     <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js"></script>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-<nav class="navbar navbar-toggleable-sm navbar-expand-sm bg-dark navbar-dark fixed-top">
+<nav class="navbar navbar-toggleable-sm navbar-expand-sm bg-dark navbar-dark">
     <button class="navbar-toggler navbar-toggler-right" type="button" data-toggle="collapse" data-target="#navbarNavAltMarkup" aria-controls="navbarNavAltMarkup" aria-expanded="false" aria-label="Toggle navigation">
         <span class="navbar-toggler-icon"></span>
     </button>
@@ -20,9 +21,10 @@
     <div class="collapse navbar-collapse" id="navbarNavAltMarkup">
         <div class="navbar-nav mr-auto">
             <div class="nav-item nav-link active">Home</div>
-            <a class="nav-item nav-link" href="messages.html">Messages <span class="badge badge-light">1</span></a>
+            <a class="nav-item nav-link" href="messages.html">Messages <span class="badge badge-light">##unread##</span></a>
         </div>
         <div class="navbar-nav navbar-right">
+            <span class="navbar-text">Hello ##username##! | </span>
             <a class="nav-item nav-link" href="logout"><span class="fa fa-power-off"></span> Logout</a>
         </div>
     </div>

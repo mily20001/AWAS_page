@@ -3,7 +3,35 @@
 const http = require('http');
 const fs = require('fs');
 const qs = require('querystring');
-const crypto = require("crypto");
+const crypto = require('crypto');
+
+const messages = {};
+
+function sendMessage(sender, receiver, message) {
+    if(messages[receiver] === undefined) {
+        messages[receiver] = {
+            messages: [],
+            unreadCount: 0,
+        };
+    }
+
+    messages[receiver].messages.push({author: sender, body: message, date: (new Date()).valueOf()});
+    messages[receiver].unreadCount++;
+}
+
+function getMessages(username, callback) {
+    if(messages[username] === undefined)
+        callback([]);
+    else
+        callback(messages[username].messages);
+}
+
+function getUnreadCount(username, callback) {
+    if(messages[username] === undefined)
+        callback(0);
+    else
+        callback(messages[username].unreadCount);
+}
 
 const users = new Map();
 users.set('admin', {
@@ -58,6 +86,13 @@ function cookieToUser(cookie, callback) {
     callback({error: 'wrong cookie'});
 }
 
+function fillNavbar(username, pageString, callback) {
+    let wyn = pageString.replace('##username##', username);
+    getUnreadCount(username, (unreadCount) => {
+        wyn = wyn.replace('##unread##', unreadCount);
+        callback(wyn);
+    });
+}
 
 const server = http.createServer((req, res) => {
     const cookies = parseCookies(req.headers.cookie);
@@ -69,30 +104,65 @@ const server = http.createServer((req, res) => {
         if (compareUrl(req.url, '/login')) {
             res.end(fs.readFileSync('login.html').toString());
         }
-
-        if (compareUrl(req.url, '/index')) {
+        else if (compareUrl(req.url, '/index')) {
             cookieToUser(cookies['id'], (user) => {
                 if (user.error === 'wrong cookie') {
                     res.end(fs.readFileSync('index.html').toString());
                 }
                 else if (user.role === 'admin') {
-                    res.end(fs.readFileSync('indexAdmin.html'));
+                    fillNavbar(user.username, fs.readFileSync('indexAdmin.html').toString(), (pageHTML) => {
+                        res.end(pageHTML);
+                    });
                 }
                 else if (user.role === 'user') {
-                    res.end(fs.readFileSync('indexUser.html'));
+                    fillNavbar(user.username, fs.readFileSync('indexUser.html').toString(), (pageHTML) => {
+                        res.end(pageHTML);
+                    });
                 }
                 else {
                     res.end('Internal error, code 1');
                 }
             });
         }
-
-        if(compareUrl(req.url, '/logout')) {
+        else if (compareUrl(req.url, '/messages')) {
+            cookieToUser(cookies['id'], (user) => {
+                if (user.role === 'admin') {
+                    fillNavbar(user.username, fs.readFileSync('messagesAdmin.html').toString(), (pageHTML) => {
+                        res.end(pageHTML);
+                    });
+                }
+                else {
+                    fillNavbar(user.username, fs.readFileSync('messagesUser.html').toString(), (pageHTML) => {
+                        res.end(pageHTML);
+                    });
+                }
+            });
+        }
+        else if (compareUrl(req.url, '/users')) {
+            cookieToUser(cookies['id'], (user) => {
+                fillNavbar(user.username, fs.readFileSync('users.html').toString(), (pageHTML) => {
+                    res.end(pageHTML);
+                });
+            });
+        }
+        else if(compareUrl(req.url, '/logout')) {
             res.writeHead(302, {
                 'Set-Cookie': 'id=',
                 'Location': 'index.html'
             });
             res.end();
+        }
+        else {
+            const path = req.url[0] === '/' ? `.${req.url}` : req.url;
+
+            if(fs.existsSync(path)) {
+                res.end(fs.readFileSync(path));
+            }
+            else {
+                console.log(`Requested file ${path} doesn't exist`);
+                res.writeHead(404);
+                res.end('Not found');
+            }
         }
     }
 
@@ -114,7 +184,7 @@ const server = http.createServer((req, res) => {
                 checkPassword(post.username, post.password, (result) => {
                     if(result.status === 'ok') {
                         const newCookie = crypto.randomBytes(24).toString('hex');
-                        validCookies[newCookie] = {username: result.username, role: result.role};
+                        validCookies[newCookie] = {username: post.username, role: result.role};
                         console.log('New cookie:', newCookie, validCookies[newCookie]);
                         res.writeHead(302, {
                             'Set-Cookie': `id=${newCookie}`,
