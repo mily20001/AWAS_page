@@ -94,6 +94,13 @@ function fillNavbar(username, pageString, callback) {
     });
 }
 
+function fillStatus(role, htmlString, callback) {
+    const status = fs.readFileSync('statusTemplate.html');
+    //TODO fill status
+    const wyn = htmlString.replace('##status##', status);
+    callback(wyn);
+}
+
 const server = http.createServer((req, res) => {
     const cookies = parseCookies(req.headers.cookie);
     console.log(cookies);
@@ -104,19 +111,31 @@ const server = http.createServer((req, res) => {
         if (compareUrl(req.url, '/login')) {
             res.end(fs.readFileSync('login.html').toString());
         }
+        else if (req.url === '/') {
+            res.writeHead(302, {
+                'Location': 'index.html'
+            });
+            res.end();
+        }
         else if (compareUrl(req.url, '/index')) {
             cookieToUser(cookies['id'], (user) => {
                 if (user.error === 'wrong cookie') {
-                    res.end(fs.readFileSync('index.html').toString());
+                    fillStatus('anonymous', fs.readFileSync('index.html').toString(), (fullPageHTML) => {
+                        res.end(fullPageHTML);
+                    })
                 }
                 else if (user.role === 'admin') {
                     fillNavbar(user.username, fs.readFileSync('indexAdmin.html').toString(), (pageHTML) => {
-                        res.end(pageHTML);
+                        fillStatus(user.role, pageHTML, (fullPageHTML) => {
+                            res.end(fullPageHTML);
+                        });
                     });
                 }
                 else if (user.role === 'user') {
                     fillNavbar(user.username, fs.readFileSync('indexUser.html').toString(), (pageHTML) => {
-                        res.end(pageHTML);
+                        fillStatus(user.role, pageHTML, (fullPageHTML) => {
+                            res.end(fullPageHTML);
+                        })
                     });
                 }
                 else {
@@ -205,3 +224,4 @@ const server = http.createServer((req, res) => {
 
 }).listen(8881);
 
+console.log('Server running at http://localhost:8881');
