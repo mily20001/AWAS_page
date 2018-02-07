@@ -25,8 +25,6 @@ html, body
     margin-bottom: 0;
 }
 
-.switch input {display:none;}
-
 .slider {
     position: absolute;
     cursor: pointer;
@@ -51,15 +49,11 @@ html, body
     transition: .4s;
 }
 
-input:checked + .slider {
+.slider.checked {
     background-color: #005da7;
 }
 
-input:focus + .slider {
-    box-shadow: 0 0 1px #005da7;
-}
-
-input:checked + .slider:before {
+.slider.checked:before {
     transform: translateX(32px);
 }
 

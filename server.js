@@ -6,6 +6,34 @@ const qs = require('querystring');
 const crypto = require('crypto');
 
 const messages = {};
+const status = new Map();
+status.set('Espoo', {
+    currentLoad: 12.1,
+    maxLoad: 90.0,
+    status: 'Running',
+    toggleStatus: 'on',
+});
+
+status.set('Vantaa', {
+    currentLoad: 9.6,
+    maxLoad: 70.0,
+    status: 'Running',
+    toggleStatus: 'on',
+});
+
+status.set('Helsinki', {
+    currentLoad: 42.0,
+    maxLoad: 120.0,
+    status: 'Running',
+    toggleStatus: 'on',
+});
+
+status.set('Helsinki2', {
+    currentLoad: 0.0,
+    maxLoad: 80.0,
+    status: 'Ready',
+    toggleStatus: 'off',
+});
 
 function sendMessage(sender, receiver, message) {
     if(messages[receiver] === undefined) {
@@ -86,6 +114,38 @@ function cookieToUser(cookie, callback) {
     callback({error: 'wrong cookie'});
 }
 
+function getStatus(callback) {
+    // const wyn = {};
+    // status.forEach((key, val) => {
+    //     wyn[key] = val;
+    // });
+    //
+    // callback(wyn);
+
+    callback(status);
+}
+
+function changeStatus(target, callback) {
+    if(status.has(target)) {
+        const tmp = status.get(target);
+        if(tmp.toggleStatus === 'on') {
+            tmp.toggleStatus = 'off';
+            tmp.status = 'Ready';
+            tmp.currentLoad = 0;
+        }
+        else {
+            tmp.toggleStatus = 'on';
+            tmp.status = 'Running';
+            tmp.currentLoad = parseFloat(Math.random() * tmp.maxLoad);
+        }
+
+        status.set(target, tmp);
+        callback(tmp);
+    }
+    else
+        callback({}, 'err');
+}
+
 function fillNavbar(username, pageString, callback) {
     let wyn = pageString.replace('##username##', username);
     getUnreadCount(username, (unreadCount) => {
@@ -95,10 +155,46 @@ function fillNavbar(username, pageString, callback) {
 }
 
 function fillStatus(role, htmlString, callback) {
-    const status = fs.readFileSync('statusTemplate.html');
-    //TODO fill status
-    const wyn = htmlString.replace('##status##', status);
-    callback(wyn);
+    let status = fs.readFileSync('statusTemplate.html').toString();
+    const script = 'function toggle(target) {' +
+        'var req = new XMLHttpRequest();' +
+        'req.onreadystatechange = () => handleToggle(target, req);' +
+        'req.open("GET", `/toggle=${target}`, true);' +
+        'req.send()' +
+        '}';
+    if(role === 'admin') {
+        status = status.replace('##>#', '').replace('###', '').replace('##script##', script);
+    }
+    else {
+        status = status.replace('##>#', '<!--').replace('###', '-->').replace('##script##', '');
+    }
+
+    let body = '';
+
+    getStatus((res) => {
+        res.forEach((val, key) => {
+            let row = '<tr>';
+            row += `<td>${key}</td>`;
+            row += `<td id="load_${key}">${val.currentLoad.toFixed(1)}kW</td>`;
+            row += `<td>${val.maxLoad.toFixed(1)}kW</td>`;
+            row += `<td id="status_${key}">${val.status}</td>`;
+            if(role === 'admin') {
+                    row += '<td>' +
+                        '<label class="switch">' +
+                        `<span id="switch_${key}" class="slider ${val.toggleStatus === 'on' ? 'checked' : ''} round" onclick="toggle('${key}')"></span>` +
+                        '</td>'
+            }
+
+            row += '</tr>';
+
+            body += row;
+        });
+
+        status = status.replace('##body##', body);
+
+        const wyn = htmlString.replace('##status##', status);
+        callback(wyn);
+    });
 }
 
 const server = http.createServer((req, res) => {
@@ -170,6 +266,22 @@ const server = http.createServer((req, res) => {
                 'Location': 'index.html'
             });
             res.end();
+        }
+        else if (compareUrl(req.url, '/toggle')) {
+            const target = req.url.split('toggle=')[1];
+            if(target !== undefined) {
+                console.log(`Requested toggle for ${target}`);
+                changeStatus(target, (status, err) => {
+                    console.log(status, err);
+                    if(err === undefined) {
+                        res.end(JSON.stringify(status));
+                    }
+                    else
+                        res.end(JSON.stringify({error: 'err1'}));
+                })
+            }
+            else
+                res.end(JSON.stringify({error: 'err2'}));
         }
         else {
             const path = req.url[0] === '/' ? `.${req.url}` : req.url;

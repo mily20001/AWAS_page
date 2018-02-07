@@ -11,42 +11,30 @@
         </tr>
         </thead>
         <tbody>
-        <tr>
-            <td>Espoo</td>
-            <td>12.1kW</td>
-            <td>90.0kW</td>
-            <td>Running</td>
-            <td>
-                <label class="switch">
-                    <input type="checkbox">
-                    <span class="slider round"></span>
-                </label>
-            </td>
-        </tr>
-        <tr>
-            <td>Vantaa</td>
-            <td>9.6kW</td>
-            <td>70.0kW</td>
-            <td>Running</td>
-            <td>
-                <label class="switch">
-                    <input type="checkbox">
-                    <span class="slider round"></span>
-                </label>
-            </td>
-        </tr>
-        <tr>
-            <td>Helsinki</td>
-            <td>42.0kW</td>
-            <td>120.0kW</td>
-            <td>Running</td>
-            <td>
-                <label class="switch">
-                    <input type="checkbox">
-                    <span class="slider round"></span>
-                </label>
-            </td>
-        </tr>
+        ##body##
         </tbody>
     </table>
+
+    <script>
+        function handleToggle(target, req) {
+            if(req.readyState !== 4)
+                return;
+
+            try {
+                const res = JSON.parse(req.responseText);
+                if (res.error !== undefined) {
+                    console.err(target, res.error);
+                    return;
+                }
+                document.getElementById(`switch_${target}`).className = `slider ${res.toggleStatus === 'on' ? 'checked' : ''} round`;
+                document.getElementById(`status_${target}`).innerText = res.status;
+                document.getElementById(`load_${target}`).innerText = `${parseFloat(res.currentLoad).toFixed(1)}kW`;
+            }
+            catch (e){
+                return;
+            }
+        }
+
+        ##script##
+    </script>
 </div>
