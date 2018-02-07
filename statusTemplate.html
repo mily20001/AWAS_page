@@ -19,7 +19,6 @@
         function handleToggle(target, req) {
             if(req.readyState !== 4)
                 return;
-
             try {
                 const res = JSON.parse(req.responseText);
                 if (res.error !== undefined) {
