@@ -30,7 +30,62 @@
     </div>
 </nav>
 
-##status##
+<div class="container">
+    <h3 class="text-light">Messages</h3>
+    <table class="table table-dark table-striped">
+        <thead>
+        <tr>
+            <th>Author</th>
+            <th>Message</th>
+            <th>Date</th>
+        </tr>
+        </thead>
+        ##messages##
+    </table>
+</div>
+
+<div class="container text-light">
+    <div id="sent-ok" class="invisible">
+        <div class="alert alert-success" role="alert">
+            Message sent
+        </div>
+    </div>
+    <h3>Send message</h3>
+    <form class="form-horizontal" action="sendMessage.html" method="post">
+        <div class="form-group row">
+            <label class="control-label col-sm-12" for="receiver">Receiver:</label>
+        </div>
+        <div class="form-group row">
+            <div class="col-sm-12">
+                <input type="text" class="form-control bg-dark text-white" id="receiver" name="receiver" placeholder="Enter receiver">
+            </div>
+        </div>
+        <div class="form-group row">
+            <label class="control-label col-sm-12" for="message">Message:</label>
+        </div>
+        <div class="form-group row">
+            <div class="col-sm-12">
+                <input type="text" class="form-control bg-dark text-white" id="message" name="message" placeholder="Enter message text">
+            </div>
+        </div>
+        
+        <input type="hidden" class="form-control hidden" id="author" name="author" value="##username##">
+        
+        <div class="form-group row">
+            <div class="col-sm-offset-10 col-sm-2">
+                <button type="submit" class="btn btn-outline-light btn-lg">Send</button>
+            </div>
+        </div>
+    </form>
+</div>
+
+<script>
+    const url = new URL(window.location.href);
+    const sent = url.searchParams.get('sent');
+    if(sent === '1') {
+        document.getElementById('sent-ok').className = "visible";
+    }
+</script>
 
 </body>
 </html>

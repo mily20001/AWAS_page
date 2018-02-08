@@ -5,32 +5,49 @@ const fs = require('fs');
 const qs = require('querystring');
 const crypto = require('crypto');
 
-const messages = {};
+const messages = {
+    admin: {
+        unreadCount: 2,
+        messages: [
+            {author: 'milosz', body: 'Hello, today there were some problems today in Espoo region. When it will be fixed?', date: 1518117560680},
+            {author: 'milosz', body: 'Hi, it is going to be really cold this week, is power plant ready for that?', date: 1517217560680},
+            {author: 'user1', body: 'Hi, we had blackout today, Im really disappointed about that', date: 1517627560680},
+        ]
+    },
+    
+    milosz: {
+        unreadCount: 1,
+        messages: [
+            {author: 'admin', body: 'Hello, it should start working tomorrow around 9:00AM', date: 1518118960680},
+        ]
+    }
+};
+
 const status = new Map();
 status.set('Espoo', {
-    currentLoad: 12.1,
-    maxLoad: 90.0,
+    currentLoad: 6292.1,
+    maxLoad: 9300.0,
     status: 'Running',
     toggleStatus: 'on',
 });
 
 status.set('Vantaa', {
-    currentLoad: 9.6,
-    maxLoad: 70.0,
+    currentLoad: 5029.6,
+    maxLoad: 7200.0,
     status: 'Running',
     toggleStatus: 'on',
 });
 
 status.set('Helsinki', {
-    currentLoad: 42.0,
-    maxLoad: 120.0,
+    currentLoad: 9442.0,
+    maxLoad: 13800.0,
     status: 'Running',
     toggleStatus: 'on',
 });
 
 status.set('Helsinki2', {
     currentLoad: 0.0,
-    maxLoad: 80.0,
+    maxLoad: 12400.0,
     status: 'Ready',
     toggleStatus: 'off',
 });
@@ -50,8 +67,11 @@ function sendMessage(sender, receiver, message) {
 function getMessages(username, callback) {
     if(messages[username] === undefined)
         callback([]);
-    else
+    else {
+        messages[username].unreadCount = 0;
+//         console.log(messages[username].messages);
         callback(messages[username].messages);
+    }
 }
 
 function getUnreadCount(username, callback) {
@@ -147,7 +167,7 @@ function changeStatus(target, callback) {
 }
 
 function fillNavbar(username, pageString, callback) {
-    let wyn = pageString.replace('##username##', username);
+    let wyn = pageString.replace(/##username##/g, username);
     getUnreadCount(username, (unreadCount) => {
         wyn = wyn.replace('##unread##', unreadCount);
         callback(wyn);
@@ -197,6 +217,22 @@ function fillStatus(role, htmlString, callback) {
     });
 }
 
+function fillMessages(username, htmlString, callback) {
+    let messagesHTML = '<tbody>';
+    getMessages(username, (msges) => {
+        const messages = msges.sort((a, b) => (b.date - a.date));
+        messages.forEach((message) => {
+            messagesHTML += `<tr><td>${message.author}</td>`;
+            messagesHTML += `<td>${message.body}</td>`;
+            messagesHTML += `<td>${(new Date(message.date)).toLocaleString()}</td></tr>`;
+        });
+        messagesHTML += '</tbody>';
+        console.log(messagesHTML);
+        const wyn = htmlString.replace('##messages##', messagesHTML);
+        callback(wyn);
+    });
+}
+
 const server = http.createServer((req, res) => {
     const cookies = parseCookies(req.headers.cookie);
     console.log(cookies);
@@ -242,13 +278,17 @@ const server = http.createServer((req, res) => {
         else if (compareUrl(req.url, '/messages')) {
             cookieToUser(cookies['id'], (user) => {
                 if (user.role === 'admin') {
-                    fillNavbar(user.username, fs.readFileSync('messagesAdmin.html').toString(), (pageHTML) => {
-                        res.end(pageHTML);
+                    fillMessages(user.username, fs.readFileSync('messagesAdmin.html').toString(), (pageHTML) => {
+                        fillNavbar(user.username, pageHTML, (fullPageHTML) => {
+                            res.end(fullPageHTML);
+                        });
                     });
                 }
                 else {
-                    fillNavbar(user.username, fs.readFileSync('messagesUser.html').toString(), (pageHTML) => {
-                        res.end(pageHTML);
+                    fillMessages(user.username, fs.readFileSync('messagesUser.html').toString(), (pageHTML) => {
+                        fillNavbar(user.username, pageHTML, (fullPageHTML) => {
+                            res.end(fullPageHTML);
+                        });
                     });
                 }
             });
@@ -311,6 +351,7 @@ const server = http.createServer((req, res) => {
         req.on('end', function () {
             const post = qs.parse(body);
             console.log(post);
+            
             if(req.url === '/index.html') {
                 checkPassword(post.username, post.password, (result) => {
                     if(result.status === 'ok') {
@@ -330,6 +371,13 @@ const server = http.createServer((req, res) => {
                         res.end();
                     }
                 })
+            }
+            else if (compareUrl(req.url, '/sendMessage')) {
+                sendMessage(post.author, post.receiver, post.message);
+                res.writeHead(302, {
+                    'Location': 'messages.html?sent=1'
+                });
+                res.end();
             }
         });
     }
