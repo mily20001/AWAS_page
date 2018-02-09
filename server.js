@@ -101,7 +101,7 @@ const validCookies = {};
 
 function getUserList(callback) {
     let userList = [];
-    users.forEach((username, user) => {userList.push({username, role: user.role})});
+    users.forEach((user, username) => {userList.push({username, role: user.role})});
     callback(userList);
 }
 
@@ -233,6 +233,19 @@ function fillMessages(username, htmlString, callback) {
     });
 }
 
+function fillUsers(htmlString, callback) {
+    let body = '<tbody>';
+    getUserList((userList) => {
+        userList.forEach((user) => {
+            body += `<tr><td>${user.username}</td>`;
+            body += `<td>${user.role}</td></tr>`;
+        });
+        
+        body += '</tbody>';
+        callback(htmlString.replace('##users##', body));
+    });
+}
+
 const server = http.createServer((req, res) => {
     const cookies = parseCookies(req.headers.cookie);
     console.log(cookies);
@@ -296,13 +309,15 @@ const server = http.createServer((req, res) => {
         else if (compareUrl(req.url, '/users')) {
             cookieToUser(cookies['id'], (user) => {
                 fillNavbar(user.username, fs.readFileSync('users.html').toString(), (pageHTML) => {
-                    res.end(pageHTML);
+                    fillUsers(pageHTML, (fullPageHTML) => {
+                        res.end(fullPageHTML);
+                    });
                 });
             });
         }
         else if(compareUrl(req.url, '/logout')) {
             res.writeHead(302, {
-                'Set-Cookie': 'id=',
+                'Set-Cookie': 'id=; Http-only',
                 'Location': 'index.html'
             });
             res.end();
@@ -359,7 +374,7 @@ const server = http.createServer((req, res) => {
                         validCookies[newCookie] = {username: post.username, role: result.role};
                         console.log('New cookie:', newCookie, validCookies[newCookie]);
                         res.writeHead(302, {
-                            'Set-Cookie': `id=${newCookie}`,
+                            'Set-Cookie': `id=${newCookie}; Http-only`,
                             'Location': 'index.html'
                         });
                         res.end();
