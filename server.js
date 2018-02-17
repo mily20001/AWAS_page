@@ -107,9 +107,11 @@ function getUserList(callback) {
 
 function checkPassword(username, password, callback) {
     if(users.has(username))
-        if(users.get(username).password === password)
+        if(users.get(username).password === password) {
             callback({status: 'ok', role: users.get(username).role});
-
+            return;
+        }
+    
     callback({status: 'wrong'});
 }
 
@@ -130,8 +132,9 @@ function parseCookies(cookieString) {
 function cookieToUser(cookie, callback) {
     if(validCookies[cookie] !== undefined) {
         callback({username: validCookies[cookie].username, role: validCookies[cookie].role});
+    } else {
+        callback({error: 'wrong cookie'});
     }
-    callback({error: 'wrong cookie'});
 }
 
 function getStatus(callback) {
@@ -227,7 +230,7 @@ function fillMessages(username, htmlString, callback) {
             messagesHTML += `<td>${(new Date(message.date)).toLocaleString()}</td></tr>`;
         });
         messagesHTML += '</tbody>';
-        console.log(messagesHTML);
+//         console.log(messagesHTML);
         const wyn = htmlString.replace('##messages##', messagesHTML);
         callback(wyn);
     });
@@ -338,17 +341,14 @@ const server = http.createServer((req, res) => {
             else
                 res.end(JSON.stringify({error: 'err2'}));
         }
+        else if(req.url === '/style.css')
+        {
+            res.end(fs.readFileSync('style.css'));
+        }
         else {
-            const path = req.url[0] === '/' ? `.${req.url}` : req.url;
-
-            if(fs.existsSync(path)) {
-                res.end(fs.readFileSync(path));
-            }
-            else {
-                console.log(`Requested file ${path} doesn't exist`);
-                res.writeHead(404);
-                res.end('Not found');
-            }
+            console.log(`Requested file ${url} doesn't exist`);
+            res.writeHead(404);
+            res.end('Not found');
         }
     }
 
@@ -388,11 +388,13 @@ const server = http.createServer((req, res) => {
                 })
             }
             else if (compareUrl(req.url, '/sendMessage')) {
-                sendMessage(post.author, post.receiver, post.message);
-                res.writeHead(302, {
-                    'Location': 'messages.html?sent=1'
+                cookieToUser(cookies['id'], (user) => {
+                    sendMessage(user.username, post.receiver, post.message);
+                    res.writeHead(302, {
+                        'Location': 'messages.html?sent=1'
+                    });
+                    res.end();
                 });
-                res.end();
             }
         });
     }
