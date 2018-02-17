@@ -346,7 +346,7 @@ const server = http.createServer((req, res) => {
             res.end(fs.readFileSync('style.css'));
         }
         else {
-            console.log(`Requested file ${url} doesn't exist`);
+            console.log(`Requested file ${req.url} doesn't exist`);
             res.writeHead(404);
             res.end('Not found');
         }
